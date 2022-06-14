@@ -3,107 +3,145 @@
 #IF-44-02
 
 #!/usr/bin/python
-from mininet.topo import Topo
+#!/usr/bin/env python
 from mininet.net import Mininet
-from mininet.node import Node
-from mininet.log import setLogLevel, info
 from mininet.cli import CLI
-from mininet.link import TCLink
-from mininet.node import CPULimitedHost
-import time
-import os
+from mininet.link import Link, TCLink,Intf
+from subprocess import Popen, PIPE
+from mininet.log import setLogLevel
 
-class MyTopo(Topo):
-  def __init__(self, **opts):
-     Topo.__init__(self, **opts)
-     
-     #Membuat objek Host
-     H1 = self.addHost('H1')
-     H2 = self.addHost('H2')
-     
-     R1 = self.addHost('R1')
-     R2 = self.addHost('R2')
-     R3 = self.addHost('R3')
-     R4 = self.addHost('R4')
-     
-     #Setting bandwith(20,40,60)
-     MaxSize = 20
-     delay = 1
-     linkopts0 = dict(bw=0.5, delay='{}ms'.format(delay), loss=0, max_queue_size=MaxSize, use_tbf=True)
-     linkopts1 = dict(bw=1, delay='{}ms'.format(delay), loss=0, max_queue_size=MaxSize, use_tbf=True)
-     
-     #Membuat link router ke router
-     self.addLink(R1, R3, cls=TCLink, **linkopts0, intfName1 = 'R1-eth1', intfName2 = 'R3-eth0')
-     self.addLink(R1, R4, cls=TCLink, **linkopts1, intfName1 = 'R1-eth2', intfName2 = 'R4-eth2')
-     self.addLink(R2, R3, cls=TCLink, **linkopts0, intfName1 = 'R2-eth2', intfName2 = 'R3-eth2')
-     self.addLink(R2, R4, cls=TCLink, **linkopts1,  intfName1 = 'R2-eth1', intfName2 = 'R4-eth1')
-     
-     #Membuat link router ke host
-     self.addLink(H1, R1, cls=TCLink, **linkopts0, intfName1 = 'H1-eth0', intfName2 = 'R1-eth0')
-     self.addLink(H1, R2, cls=TCLink, **linkopts1, intfName1 = 'H1-eth1', intfName2 = 'R2-eth1')
-     self.addLink(H2, R3, cls=TCLink, **linkopts0, intfName1 = 'H2-eth0', intfName2 = 'R2-eth1')
-     
-     def runTopo():
-     
-     #Membangun topologi
-     topo = MyTopo()
-     net = Mininet(topo=topo, host=CPUlimitedHost, link=TCLink)
-     net.start():
-     
-     #Memasukkan objek host pada variabel
-     H1,H2,R1,R2,R3,R4 = net.get('H1','H2','R1','R2','R3','R4')
-
-	#Konfigurasi IP
-	H1.cmd('ifconfig H1-eth0 0')
-	H1.cmd('ifconfig H1-eth1 0')
-	H1.cmd('ifconfig H1-eth0 192.40.3.7 netmask 255.255.255.252')
-	H1.cmd('ifconfig H1-eth1 192.40.3.11 netmask 255.255.255.252')
-
-	H2.cmd('ifconfig H2-eth0 0')
-	H2.cmd('ifconfig H2-eth1 0')
-	H2.cmd('ifconfig H2-eth0 192.40.3.24 netmask 255.255.255.252')
-	H2.cmd('ifconfig H2-eth1 192.40.3.28 netmask 255.255.255.252')
-
-	R1.cmd('ifconfig R1-eth0 0')
-	R1.cmd('ifconfig R1-eth1 0')
-	R1.cmd('ifconfig R1-eth2 0')
-	R1.cmd('ifconfig R1-eth0 192.40.3.8 netmask 255.255.255.252')
-	R1.cmd('ifconfig R1-eth1 192.40.3.15 netmask 255.255.255.252')
-	R1.cmd('ifconfig R1-eth2 192.40.3.31 netmask 255.255.255.252') 
-
-	R2.cmd('ifconfig R1-eth0 0')
-	R2.cmd('ifconfig R1-eth1 0')
-	R2.cmd('ifconfig R1-eth2 0')
-	R2.cmd('ifconfig R1-eth0 192.40.3.12 netmask 255.255.255.252')
-	R2.cmd('ifconfig R1-eth1 192.40.3.19 netmask 255.255.255.252')
-	R2.cmd('ifconfig R1-eth2 192.40.3.35 netmask 255.255.255.252')
-  
-	R3.cmd('ifconfig R1-eth0 0')
-	R3.cmd('ifconfig R1-eth1 0')
-	R3.cmd('ifconfig R1-eth2 0')
-	R3.cmd('ifconfig R1-eth0 192.40.3.13 netmask 255.255.255.252')
-	R3.cmd('ifconfig R1-eth1 192.40.3.16 netmask 255.255.255.252')
-	R3.cmd('ifconfig R1-eth2 192.40.3.36 netmask 255.255.255.252')
-
-	R4.cmd('ifconfig R4-eth0 0')
-	R4.cmd('ifconfig R4-eth1 0')
-	R4.cmd('ifconfig R4-eth2 0')
-	R4.cmd('ifconfig R4-eth0 192.40.3.27 netmask 255.255.255.252')
-	R4.cmd('ifconfig R4-eth1 192.40.3.20 netmask 255.255.255.252')
-	R4.cmd('ifconfig R4-eth2 192.40.3.32 netmask 255.255.255.252')
-
-
-	#enabling ip forward for all router
-	R1.cmd('echo 1 > /proc/sys/net/ipv4/ip_forward')
-	R2.cmd('echo 2 > /proc/sys/net/ipv4/ip_forward')
-	R3.cmd('echo 3 > /proc/sys/net/ipv4/ip_forward')
-	R4.cmd('echo 4 > /proc/sys/net/ipv4/ip_forward')
-	
-if __name__ == '__main__':
-	run()
+if '__main__' == __name__:
 	setLogLevel('info')
+	net = Mininet(link=TCLink)
+	key="net.mptcp.mptcp_enable"
+	value=0
+	p = Popen("sysctl -w %s=%s" % (key, value), shell=True, stdout=PIPE, stderr=PIPE)
+	stdout, stderr= p.communicate()
+	print("stdout=",stdout,"stderr=",stderr)
+	
+	#buat host dan router	
+	h1=net.addHost('h1')
+	h2=net.addHost('h2')
+	r1=net.addHost('r1')
+	r2=net.addHost('r2')
+	r3=net.addHost('r3')
+	r4=net.addHost('r4')
+	
+	#atur bandwidth
+	bw1mbps={'bw':1}
+	bw500={'bw':0.5}
 
-topos = { 'mytopo': ( lambda: MyTopo() ) }
+	#hubungkan
+	net.addLink(r1,h1,intfName1='r1-eth0',intfName2='h1-eth0',cls=TCLink, max_queue_size=100,use_tbf=True,**bw1mbps)
+	net.addLink(r1,r3,intfName1='r1-eth1',intfName2='r3-eth0',cls=TCLink, max_queue_size=100,use_tbf=True,**bw500)
+	net.addLink(r1,r4,intfName1='r1-eth2',intfName2='r4-eth2',cls=TCLink, max_queue_size=100,use_tbf=True,**bw1mbps)
 	
+	net.addLink(r2,h1,intfName1='r2-eth0',intfName2='h1-eth1',cls=TCLink, max_queue_size=100,use_tbf=True,**bw1mbps)
+	net.addLink(r2,r4,intfName1='r2-eth1',intfName2='r4-eth0',cls=TCLink, max_queue_size=100,use_tbf=True,**bw500)
+	net.addLink(r2,r3,intfName1='r2-eth2',intfName2='r3-eth2',cls=TCLink, max_queue_size=100,use_tbf=True,**bw1mbps)
 	
+	net.addLink(r3,h2,intfName1='r3-eth1',intfName2='h2-eth1',cls=TCLink, max_queue_size=100,use_tbf=True,**bw1mbps)
+	net.addLink(r4,h2,intfName1='r4-eth1',intfName2='h2-eth0',cls=TCLink, max_queue_size=100,use_tbf=True,**bw1mbps)
 	
+	net.build()
+	
+	h1.cmd("ifconfig h1-eth0 0")
+	h1.cmd("ifconfig h1-eth1 0")
+	
+	h2.cmd("ifconfig h2-eth0 0")
+	h2.cmd("ifconfig h2-eth1 0")
+	
+	r1.cmd("ifconfig r1-eth0 0")
+	r1.cmd("ifconfig r1-eth1 0")
+	r1.cmd("ifconfig r1-eth2 0")
+	
+	r2.cmd("ifconfig r2-eth0 0")
+	r2.cmd("ifconfig r2-eth1 0")
+	r2.cmd("ifconfig r2-eth2 0")
+	
+	r3.cmd("ifconfig r3-eth0 0")
+	r3.cmd("ifconfig r3-eth1 0")
+	r3.cmd("ifconfig r3-eth2 0")
+	
+	r4.cmd("ifconfig r4-eth0 0")
+	r4.cmd("ifconfig r4-eth1 0")
+	r4.cmd("ifconfig r4-eth2 0")
+	
+	r1.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
+	r2.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
+	r3.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
+	r4.cmd("echo 1 > /proc/sys/net/ipv4/ip_forward")
+	
+	h1.cmd("ifconfig h1-eth0 10.0.40.1 netmask 255.255.255.0")
+	h1.cmd("ifconfig h1-eth1 10.0.41.1 netmask 255.255.255.0")
+	
+	h2.cmd("ifconfig h2-eth1 10.0.43.1 netmask 255.255.255.0")
+	h2.cmd("ifconfig h2-eth0 10.0.47.1 netmask 255.255.255.0")	
+	
+	r1.cmd("ifconfig r1-eth0 10.0.40.2 netmask 255.255.255.0")
+	r1.cmd("ifconfig r1-eth1 10.0.42.1 netmask 255.255.255.0")
+	r1.cmd("ifconfig r1-eth2 10.0.44.1 netmask 255.255.255.0")
+	
+	r2.cmd("ifconfig r2-eth0 10.0.41.2 netmask 255.255.255.0")
+	r2.cmd("ifconfig r2-eth1 10.0.46.1 netmask 255.255.255.0")
+	r2.cmd("ifconfig r2-eth2 10.0.45.1 netmask 255.255.255.0")
+	
+	r3.cmd("ifconfig r3-eth0 10.0.42.2 netmask 255.255.255.0")
+	r3.cmd("ifconfig r3-eth1 10.0.43.2 netmask 255.255.255.0")
+	r3.cmd("ifconfig r3-eth2 10.0.45.2 netmask 255.255.255.0")
+	
+	r4.cmd("ifconfig r4-eth0 10.0.46.2 netmask 255.255.255.0")
+	r4.cmd("ifconfig r4-eth1 10.0.47.2 netmask 255.255.255.0")
+	r4.cmd("ifconfig r4-eth2 10.0.44.2 netmask 255.255.255.0")
+	
+	#h1
+	h1.cmd("ip rule add from 10.0.40.1 table 1")
+	h1.cmd("ip rule add from 10.0.41.1 table 2")
+	h1.cmd("ip route add 10.0.40.0/24 dev h1-eth0 scope link table 1")
+	h1.cmd("ip route add default via 10.0.40.2 dev h1-eth0 table 1")
+	h1.cmd("ip route add 10.0.41.0/24 dev h1-eth1 scope link table 2")
+	h1.cmd("ip route add default via 10.0.41.2 dev h1-eth1 table 2")
+	h1.cmd("ip route add default scope global nexthop via 10.0.40.2 dev h1-eth0")
+	h1.cmd("ip route add default scope global nexthop via 10.0.41.2 dev h1-eth1")
+	
+	#h2
+	h2.cmd("ip rule add from 10.0.43.1 table 1")
+	h2.cmd("ip rule add from 10.0.47.1 table 2")
+	h2.cmd("ip route add 10.0.43.0/24 dev h2-eth1 scope link table 1")
+	h2.cmd("ip route add default via 10.0.43.2 dev h2-eth1 table 1")
+	h2.cmd("ip route add 10.0.47.0/24 dev h2-eth0 scope link table 2")
+	h2.cmd("ip route add default via 10.0.47.2 dev h2-eth0 table 2")
+	h2.cmd("ip route add default scope global nexthop via 10.0.43.2 dev h2-eth1")
+	h2.cmd("ip route add default scope global nexthop via 10.0.47.2 dev h2-eth0")
+	#.....................
+	#r1 routing
+	r1.cmd('route add -net 10.0.41.0/24 gw 10.0.42.2')
+	r1.cmd('route add -net 10.0.45.0/24 gw 10.0.42.2') 
+	r1.cmd('route add -net 10.0.46.0/24 gw 10.0.44.2')
+	r1.cmd('route add -net 10.0.43.0/24 gw 10.0.42.2') 
+	r1.cmd('route add -net 10.0.47.0/24 gw 10.0.44.2')
+
+	#r2 routing
+	r2.cmd('route add -net 10.0.40.0/24 gw 10.0.45.2')
+	r2.cmd('route add -net 10.0.42.0/24 gw 10.0.45.2') 
+	r2.cmd('route add -net 10.0.44.0/24 gw 10.0.46.2')
+	r2.cmd('route add -net 10.0.43.0/24 gw 10.0.45.2') 
+	r2.cmd('route add -net 10.0.47.0/24 gw 10.0.46.2')
+
+	#r3 routing
+	r3.cmd('route add -net 10.0.44.0/24 gw 10.0.42.1')
+	r3.cmd('route add -net 10.0.46.0/24 gw 10.0.45.1') 
+	r3.cmd('route add -net 10.0.47.0/24 gw 10.0.45.1')
+	r3.cmd('route add -net 10.0.40.0/24 gw 10.0.42.1') 
+	r3.cmd('route add -net 10.0.41.0/24 gw 10.0.45.1')
+
+	#r4 routing
+	r4.cmd('route add -net 10.0.45.0/24 gw 10.0.46.1')
+	r4.cmd('route add -net 10.0.42.0/24 gw 10.0.44.1') 
+	r4.cmd('route add -net 10.0.43.0/24 gw 10.0.46.1')
+	r4.cmd('route add -net 10.0.41.0/24 gw 10.0.46.1') 
+	r4.cmd('route add -net 10.0.40.0/24 gw 10.0.44.1')
+	
+	CLI(net)
+	
+	net.stop()
